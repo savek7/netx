@@ -17,4 +17,9 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.Run();
+app.MapGet("/", () =>
+{
+    return "OK";
+}); 
+
+await app.RunAsync();
