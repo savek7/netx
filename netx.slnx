@@ -7,4 +7,7 @@
   <Folder Name="/src/">
     <Project Path="src/Web/Web.csproj" Id="2adeefc9-aef8-4cb3-8423-2389d3c089a9" />
   </Folder>
+  <Folder Name="/src/tools/">
+    <Project Path="src/tools/Tools.Logging/Tools.Logging.csproj" Id="820fc883-cda0-49b6-a582-16fdc6e185a5" />
+  </Folder>
 </Solution>
