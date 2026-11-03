@@ -2,7 +2,6 @@
 
 	<PropertyGroup>
 		<InvariantGlobalization>true</InvariantGlobalization>
-		<PublishAot>true</PublishAot>
 		<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
 		<DockerfileContext>..\..</DockerfileContext>
 	</PropertyGroup>
@@ -13,6 +12,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <InternalsVisibleTo Include="Default.Tests" />
+	  <ProjectReference Include="..\modules\Default\Default.csproj" />
 	  <ProjectReference Include="..\tools\Tools.Logging\Tools.Logging.csproj" />
 	</ItemGroup>
 
