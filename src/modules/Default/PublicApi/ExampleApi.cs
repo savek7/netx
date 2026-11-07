@@ -5,11 +5,12 @@ namespace Modules.Defaults.PublicApi;
 
 internal sealed class ExampleApi(ExampleService service) : IExampleApi
 {
-    public ExampleRecord Create(string name) => ToRecord(service.Create(name));
+    public async Task<ExampleRecord> CreateAsync(string name, CancellationToken cancellationToken = default) =>
+        ToRecord(await service.CreateAsync(name, cancellationToken));
 
-    public ExampleRecord? FindById(Guid id)
+    public async Task<ExampleRecord?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        Example? example = service.Get(id);
+        Example? example = await service.GetAsync(id, cancellationToken);
         return example is null ? null : ToRecord(example);
     }
 

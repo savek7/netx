@@ -19,20 +19,20 @@ internal static class ExampleEndpoints
         group.MapGet("/{id:guid}", Get);
     }
 
-    private static Results<Created<ExampleResponse>, BadRequest> Create(CreateExampleRequest request, ExampleService service)
+    private static async Task<Results<Created<ExampleResponse>, BadRequest>> Create(CreateExampleRequest request, ExampleService service, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
         {
             return TypedResults.BadRequest();
         }
 
-        Example example = service.Create(request.Name);
+        Example example = await service.CreateAsync(request.Name, cancellationToken);
         return TypedResults.Created($"/default/examples/{example.Id}", new ExampleResponse(example.Id, example.Name));
     }
 
-    private static Results<Ok<ExampleResponse>, NotFound> Get(Guid id, ExampleService service)
+    private static async Task<Results<Ok<ExampleResponse>, NotFound>> Get(Guid id, ExampleService service, CancellationToken cancellationToken)
     {
-        Example? example = service.Get(id);
+        Example? example = await service.GetAsync(id, cancellationToken);
         return example is null
             ? TypedResults.NotFound()
             : TypedResults.Ok(new ExampleResponse(example.Id, example.Name));

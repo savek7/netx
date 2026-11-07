@@ -8,6 +8,7 @@ namespace Tools.Modularity;
 public interface IModule
 {
     string Id { get; }
+    string MigrationsTableName => "Migrations";
     IReadOnlyCollection<string> RequiredDependencies { get; }
     void RegisterServices(IServiceCollection services);
     void MapEndpoints(IEndpointRouteBuilder endpoints, IHostEnvironment environment);

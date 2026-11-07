@@ -16,5 +16,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Default.Tests/Default.Tests.csproj" />
+    <Project Path="tests/Default.IntegrationTests/Default.IntegrationTests.csproj" />
   </Folder>
 </Solution>

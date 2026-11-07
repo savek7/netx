@@ -4,13 +4,13 @@ namespace Modules.Defaults.Application;
 
 internal sealed class ExampleService(IExampleRepository repository)
 {
-    public Example Create(string name)
+    public async Task<Example> CreateAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         Example example = new(Guid.NewGuid(), name);
-        repository.Add(example);
+        await repository.AddAsync(example, cancellationToken);
         return example;
     }
 
-    public Example? Get(Guid id) => repository.Get(id);
+    public Task<Example?> GetAsync(Guid id, CancellationToken cancellationToken = default) => repository.GetAsync(id, cancellationToken);
 }

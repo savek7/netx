@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 	  <InternalsVisibleTo Include="Default.Tests" />
+	  <InternalsVisibleTo Include="Default.IntegrationTests" />
 	  <ProjectReference Include="..\modules\Default\Default.csproj" />
 	  <ProjectReference Include="..\tools\Tools.Logging\Tools.Logging.csproj" />
 	</ItemGroup>

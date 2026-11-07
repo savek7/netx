@@ -4,6 +4,6 @@ namespace Modules.Defaults.Application;
 
 internal interface IExampleRepository
 {
-    void Add(Example example);
-    Example? Get(Guid id);
+    Task AddAsync(Example example, CancellationToken cancellationToken = default);
+    Task<Example?> GetAsync(Guid id, CancellationToken cancellationToken = default);
 }
