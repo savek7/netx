@@ -5,6 +5,8 @@ using Modules.Defaults.PublicApi;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.EntityFrameworkCore;
 using Tools.Modularity;
 
 namespace Modules.Defaults;
@@ -22,9 +24,15 @@ internal sealed class DefaultModuleImplementation : IModule
     public void RegisterServices(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.AddSingleton<IExampleRepository>(_ => new InMemoryExampleRepository());
-        services.AddSingleton(provider => new ExampleService(provider.GetRequiredService<IExampleRepository>()));
-        services.AddSingleton<IExampleApi>(provider => new ExampleApi(provider.GetRequiredService<ExampleService>()));
+        services.AddDbContext<DefaultDbContext>((provider, options) =>
+        {
+            string connectionString = provider.GetRequiredService<IConfiguration>().GetConnectionString("Default")
+                ?? throw new InvalidOperationException("ConnectionStrings:Default is required.");
+            DefaultDatabase.Configure(options, connectionString, this);
+        });
+        services.AddScoped<IExampleRepository, ExampleRepository>();
+        services.AddScoped<ExampleService>();
+        services.AddScoped<IExampleApi, ExampleApi>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints, IHostEnvironment environment)

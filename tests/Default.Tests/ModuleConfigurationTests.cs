@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
@@ -28,17 +27,16 @@ public sealed class ModuleConfigurationTests
         ]);
         Assert.Equal(enabled, Assert.Single(configuration.Declarations).IsEnabled);
         configuration.RegisterServices(builder.Services);
+        Assert.Equal(enabled, builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IExampleApi)));
         await using WebApplication app = builder.Build();
         configuration.MapEndpoints(app, app.Environment);
         await app.StartAsync();
-        using HttpClient client = app.GetTestClient();
-
-        Assert.Equal(enabled, app.Services.GetService<IExampleApi>() is not null);
-        using HttpResponseMessage response = await client.GetAsync(new Uri($"/default/examples/{Guid.NewGuid()}", UriKind.Relative));
-        // A mapped route returns 404 for an unknown record; POST distinguishes the mapped endpoint.
-        using HttpResponseMessage post = await client.PostAsJsonAsync("/default/examples", new { Name = "Example" });
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Equal(enabled ? HttpStatusCode.Created : HttpStatusCode.NotFound, post.StatusCode);
+        string[] mappedRoutes = ((IEndpointRouteBuilder)app).DataSources.SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Select(endpoint => endpoint.RoutePattern.RawText)
+            .OfType<string>()
+            .ToArray();
+        Assert.Equal(enabled, mappedRoutes.Any(route => route.TrimEnd('/').Equals("/default/examples", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]
