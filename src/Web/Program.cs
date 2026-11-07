@@ -12,11 +12,10 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddLogging(builder.Logging, builder.Configuration);
 
-IModule[] modules = [DefaultModule.Create()];
-foreach (IModule module in modules)
-{
-    module.RegisterServices(builder.Services);
-}
+ModuleConfiguration modules = new([
+    ModuleDeclaration.Enabled(DefaultModule.Create())
+]);
+modules.RegisterServices(builder.Services);
 
 var app = builder.Build();
 
@@ -30,9 +29,6 @@ app.MapGet("/", () =>
     return "OK";
 }); 
 
-foreach (IModule module in modules)
-{
-    module.MapEndpoints(app, app.Environment);
-}
+modules.MapEndpoints(app, app.Environment);
 
 await app.RunAsync();
