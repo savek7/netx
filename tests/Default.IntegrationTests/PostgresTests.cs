@@ -34,7 +34,7 @@ public sealed class PostgresTests : IAsyncLifetime
             await using (NpgsqlConnection connection = new(connectionString))
             {
                 await connection.OpenAsync();
-                await using NpgsqlCommand command = new("SELECT to_regclass('default.\"Examples\"')", connection);
+                await using NpgsqlCommand command = new("SELECT to_regclass('default.\"Examples\"')::text", connection);
                 Assert.Equal(DBNull.Value, await command.ExecuteScalarAsync());
             }
 
