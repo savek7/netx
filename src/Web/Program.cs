@@ -1,7 +1,13 @@
+using System.Reflection;
+using Scalar.AspNetCore;
 using Tools.Logging;
 using Web;
 
-var builder = WebApplication.CreateSlimBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+{
+    Args = args,
+    EnvironmentName = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider" ? "Development" : null,
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
 });
@@ -19,6 +25,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.MapGet("/", () =>
