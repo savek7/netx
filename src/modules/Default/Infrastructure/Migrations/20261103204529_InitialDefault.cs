@@ -6,8 +6,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Modules.Defaults.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialDefault : Migration
+    internal partial class InitialDefault : Migration
     {
+        public InitialDefault() { }
+
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {

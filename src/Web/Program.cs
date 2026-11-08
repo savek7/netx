@@ -1,6 +1,5 @@
 using Tools.Logging;
-using Tools.Modularity;
-using Modules.Defaults;
+using Web;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -12,9 +11,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddLogging(builder.Logging, builder.Configuration);
 
-ModuleConfiguration modules = new([
-    ModuleDeclaration.Enabled(DefaultModule.Create())
-]);
+var modules = HostModules.Create(builder.Environment);
 modules.RegisterServices(builder.Services);
 
 var app = builder.Build();
