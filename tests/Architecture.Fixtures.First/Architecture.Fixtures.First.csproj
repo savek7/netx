@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\tools\Tools.Modularity\Tools.Modularity.csproj" />
+    <InternalsVisibleTo Include="Architecture.Fixtures.Second" />
+  </ItemGroup>
+</Project>

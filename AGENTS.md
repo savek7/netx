@@ -1,3 +1,7 @@
+## Language
+
+Communicate with the user in Polish and write repository documentation, including README files, in Polish.
+
 ## Agent skills
 
 ### Issue tracker
@@ -11,3 +15,7 @@ Use the canonical labels `needs-triage`, `needs-info`, `ready-for-agent`, `ready
 ### Domain docs
 
 Single-context: root `GLOSSARY.md` and `docs/adr/`. See `docs/agents/domain.md`.
+
+### Modules
+
+For running, testing, or creating modules, see `README.md`. `Default` is the template for a new module, not for every new feature.

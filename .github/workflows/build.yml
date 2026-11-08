@@ -24,7 +24,7 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
-    - name: Test
+    - name: Test unit, architecture, and PostgreSQL integration
       run: dotnet test netx.slnx --no-build --verbosity normal
     - name: Build Docker image
       run: docker build -f src/Web/Dockerfile .

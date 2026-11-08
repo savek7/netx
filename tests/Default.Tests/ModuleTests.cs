@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json.Nodes;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -68,6 +69,42 @@ public sealed class ModuleTests
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
     }
 
+    [Fact]
+    public async Task DevelopmentExposesScalarReference()
+    {
+        await using WebApplicationFactory<Program> factory = new TestFactory("Development");
+        using HttpClient client = factory.CreateClient();
+        using HttpResponseMessage entry = await client.GetAsync(new Uri("/scalar", UriKind.Relative));
+        using HttpResponseMessage response = await client.GetAsync(new Uri("/scalar/v1", UriKind.Relative));
+        Assert.Equal(HttpStatusCode.OK, entry.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task OpenApiContractMatchesBuildArtifact()
+    {
+        await using WebApplicationFactory<Program> factory = new TestFactory("Development");
+        using HttpClient client = factory.CreateClient();
+        JsonNode runtime = JsonNode.Parse(await client.GetStringAsync(new Uri("/openapi/v1.json", UriKind.Relative)))!;
+        string artifactPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Web/obj/openapi/netx.json"));
+        JsonNode artifact = JsonNode.Parse(await File.ReadAllTextAsync(artifactPath))!;
+        JsonNode post = runtime["paths"]!["/default/examples"]!["post"]!;
+        JsonNode get = runtime["paths"]!["/default/examples/{id}"]!["get"]!;
+        Assert.False(string.IsNullOrWhiteSpace((string?)post["description"]));
+        Assert.Equal("Example", (string?)post["requestBody"]!["content"]!["application/json"]!["example"]!["name"]);
+        Assert.NotNull(post["responses"]!["201"]!["content"]!["application/json"]!["schema"]);
+        Assert.NotNull(post["responses"]!["400"]);
+        Assert.Equal("uuid", (string?)get["parameters"]![0]!["schema"]!["format"]);
+        Assert.False(string.IsNullOrWhiteSpace((string?)get["parameters"]![0]!["description"]));
+        Assert.NotNull(get["responses"]!["200"]!["content"]!["application/json"]!["schema"]);
+        Assert.NotNull(get["responses"]!["404"]);
+        Assert.NotNull(runtime["components"]!["schemas"]!["CreateExampleRequest"]!["properties"]!["name"]);
+        Assert.NotNull(runtime["components"]!["schemas"]!["ExampleResponse"]!["properties"]!["id"]);
+        Assert.True(JsonNode.DeepEquals(post, artifact["paths"]!["/default/examples"]!["post"]));
+        Assert.True(JsonNode.DeepEquals(get, artifact["paths"]!["/default/examples/{id}"]!["get"]));
+        Assert.True(JsonNode.DeepEquals(runtime["components"]!["schemas"], artifact["components"]!["schemas"]));
+    }
+
     [Theory]
     [InlineData("Production")]
     [InlineData("Staging")]
@@ -80,6 +117,11 @@ public sealed class ModuleTests
         using HttpResponseMessage get = await client.GetAsync(new Uri($"/default/examples/{Guid.NewGuid()}", UriKind.Relative));
         Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, get.StatusCode);
+        foreach (string path in new[] { "/scalar", "/scalar/v1", "/openapi/v1.json" })
+        {
+            using HttpResponseMessage documentation = await client.GetAsync(new Uri(path, UriKind.Relative));
+            Assert.Equal(HttpStatusCode.NotFound, documentation.StatusCode);
+        }
         Assert.Equal("OK", await client.GetStringAsync(new Uri("/", UriKind.Relative)));
         using IServiceScope scope = factory.Services.CreateScope();
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IExampleApi>());

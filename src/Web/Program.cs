@@ -1,8 +1,13 @@
+using System.Reflection;
+using Scalar.AspNetCore;
 using Tools.Logging;
-using Tools.Modularity;
-using Modules.Defaults;
+using Web;
 
-var builder = WebApplication.CreateSlimBuilder(args);
+var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
+{
+    Args = args,
+    EnvironmentName = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider" ? "Development" : null,
+});
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
 });
@@ -12,9 +17,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddLogging(builder.Logging, builder.Configuration);
 
-ModuleConfiguration modules = new([
-    ModuleDeclaration.Enabled(DefaultModule.Create())
-]);
+var modules = HostModules.Create(builder.Environment);
 modules.RegisterServices(builder.Services);
 
 var app = builder.Build();
@@ -22,6 +25,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.MapGet("/", () =>
