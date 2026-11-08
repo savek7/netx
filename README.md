@@ -10,7 +10,7 @@ connection string, również korzystając ze wspólnej bazy.
 
 ## Konfiguracja modułów
 
-Host deklaruje moduły w `src/Web/Program.cs` przez `ModuleDeclaration.Enabled`
+Host deklaruje moduły w `src/Web/HostModules.cs` przez `ModuleDeclaration.Enabled`
 lub `ModuleDeclaration.Disabled`. Można wybrać stan na podstawie
 `builder.Environment`; zmiana wymaga ponownego uruchomienia. Moduł usunięty
 z projektu nie wymaga deklaracji. Wyłączony moduł pozostaje jawnie wymieniony,
@@ -56,3 +56,100 @@ uprawnieniami do zmiany schematu. Historia migracji znajduje się w schemacie
 Testy bez bazy: `dotnet test tests/Default.Tests/Default.Tests.csproj`.
 Pełny zestaw: `dotnet test netx.slnx`; testy integracyjne wymagają działającego
 Dockera i uruchamiają własny kontener PostgreSQL.
+
+## Korzystanie z API
+
+Po uruchomieniu środowiska utwórz przykładowy rekord:
+
+```bash
+curl -X POST http://localhost:8080/default/examples -H 'Content-Type: application/json' -d '{"name":"Przykład"}'
+```
+
+Następnie użyj identyfikatora `id` z odpowiedzi, aby odczytać rekord:
+
+```bash
+curl 'http://localhost:8080/default/examples/<id>'
+```
+
+Inny moduł może odwołać się do projektu `Default`, korzystając wyłącznie z jego
+kontraktów `Modules.Defaults.PublicApi`. Po zadeklarowaniu `Default` jako wymaganej
+zależności własnego `IModule` może wstrzyknąć `IExampleApi` i użyć go w swoim
+serwisie, bez HTTP i dostępu do repozytorium lub kontekstu bazy `Default`:
+
+```csharp
+using Modules.Defaults.PublicApi;
+
+// W metodzie serwisu, do którego wstrzyknięto IExampleApi api:
+ExampleRecord created = await api.CreateAsync("Przykład", cancellationToken);
+ExampleRecord? found = await api.FindByIdAsync(created.Id, cancellationToken);
+```
+
+## Nowy moduł z Default
+
+Nowy moduł wydzielaj dla odrębnej odpowiedzialności biznesowej. Funkcję należącą
+do istniejącej odpowiedzialności dodaj do istniejącego modułu; `Default` to
+przykład do kopiowania, a nie domyślne miejsce na dowolne funkcje.
+
+1. Skopiuj `src/modules/Default` do `src/modules/Orders` (bez katalogów `bin`
+   i `obj`). Zmień nazwę `Default.csproj` na `Orders.csproj`, przestrzenie nazw
+   `Modules.Defaults` na własne, `DefaultModule` i pozostałe nazwy klas na
+   właściwe. Nazwa assembly musi odpowiadać nazwie projektu. Pozostaw jeden
+   projekt i podział na Domain, Application, Infrastructure, Presentation oraz
+   PublicApi; projekt powinien implementować `IModule` i udostępniać publiczną
+   statyczną fabrykę zwracającą `IModule`.
+2. Usuń przykładowe `Example`, repozytorium, serwis, endpointy i kontrakty oraz
+   ich rejestrację, a następnie dodaj rzeczywiste funkcje i kontrakty. Usuń
+   skopiowane migracje i snapshot z nowego modułu — nie usuwaj migracji `Default`.
+   Dostosuj lub usuń kontekst EF i jego fabrykę projektową. Nowe migracje mają
+   należeć do nowego kontekstu; wygenerowaną klasę migracji ustaw jako `internal`
+   z publicznym konstruktorem bez parametrów, aby pozostała wykrywalna przez EF.
+3. Nadaj modułowi unikalny `Id`. Zmień klucz połączenia w rejestracji i fabryce
+   projektowej (np. `ConnectionStrings:Orders` / `ConnectionStrings__Orders`).
+   Skonfiguruj w `OrdersDatabase` własny schemat i tabelę historii migracji;
+   w przykładzie schemat pochodzi z identyfikatora modułu. Dodaj odpowiedni
+   connection string w konfiguracji hosta oraz Compose. Nie kopiuj produkcyjnych
+   sekretów do repozytorium.
+4. Dodaj projekt do rozwiązania i referencję hosta:
+
+   ```powershell
+   dotnet sln netx.slnx add src/modules/Orders/Orders.csproj
+   dotnet add src/Web/Web.csproj reference src/modules/Orders/Orders.csproj
+   ```
+
+   W `src/Web/HostModules.cs` zadeklaruj `ModuleDeclaration.Enabled(OrdersModule.Create())`
+   albo świadomie `ModuleDeclaration.Disabled(OrdersModule.Create())`. W
+   `RequiredDependencies` wpisz identyfikatory wymaganych modułów. Nieobecna lub
+   wyłączona wymagana zależność uniemożliwia uruchomienie hosta. Usunięty projekt
+   nie wymaga deklaracji; nie dodawaj automatycznego skanowania do hosta.
+5. Dla nowego kontekstu ustaw jego connection string i wygeneruj migrację, np.:
+
+   ```powershell
+   $env:ConnectionStrings__Orders = 'Host=localhost;Database=netx;Username=netx;Password=netx-local-only'
+   dotnet ef migrations add InitialOrders --project src/modules/Orders --startup-project src/Web --context OrdersDbContext --output-dir Infrastructure/Migrations
+   dotnet ef database update --project src/modules/Orders --startup-project src/Web --context OrdersDbContext
+   ```
+
+   Nazwy w przykładzie dostosuj do nowego modułu. Następnie uruchom testy i
+   sprawdź ścieżki HTTP oraz PublicApi nowego modułu.
+
+## Weryfikacja i granice izolacji
+
+```powershell
+dotnet test tests/Default.Tests/Default.Tests.csproj
+dotnet test tests/Architecture.Tests/Architecture.Tests.csproj
+dotnet test netx.slnx
+```
+
+Pierwsze dwa polecenia nie wymagają Dockera ani bazy. Pełny zestaw, również w
+CI, uruchamia integrację z prawdziwym PostgreSQL w kontenerze Testcontainers;
+wymaga działającego Dockera i możliwości pobrania obrazów. Testy architektoniczne
+sprawdzają projekty w `src/modules`, ich skompilowane typy i zależności oraz
+deklaracje hosta w środowiskach Development, Staging i Production. Przy dodaniu
+innego środowiska warunkowego należy rozszerzyć tę listę testową. Stosują
+konwencję jednej biblioteki na moduł, o nazwie assembly takiej jak plik projektu.
+
+Statyczna analiza nie wykrywa wszystkich zależności runtime (np. refleksji,
+dynamicznego ładowania lub konfiguracji). Osobne schematy i connection stringi
+same nie ograniczają uprawnień bazy: przed produkcją należy zaprojektować konta,
+uprawnienia i bezpieczną konfigurację. Migracje produkcyjne uruchamia operator
+jako osobny krok wdrożenia, nie podczas startu hosta.

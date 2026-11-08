@@ -15,6 +15,7 @@
     <Project Path="src/modules/Default/Default.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Architecture.Tests/Architecture.Tests.csproj" />
     <Project Path="tests/Default.Tests/Default.Tests.csproj" />
     <Project Path="tests/Default.IntegrationTests/Default.IntegrationTests.csproj" />
   </Folder>

@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <FixtureDependency>..\Architecture.Fixtures.First\Architecture.Fixtures.First.csproj</FixtureDependency>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(FixtureDependency)" />
+  </ItemGroup>
+</Project>
