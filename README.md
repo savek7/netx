@@ -57,6 +57,22 @@ Testy bez bazy: `dotnet test tests/Default.Tests/Default.Tests.csproj`.
 Pełny zestaw: `dotnet test netx.slnx`; testy integracyjne wymagają działającego
 Dockera i uruchamiają własny kontener PostgreSQL.
 
+## Dokumentacja OpenAPI
+
+W środowisku Development uruchomiony host udostępnia interaktywną dokumentację
+Scalar pod adresem `http://localhost:8080/scalar` oraz kontrakt JSON pod adresem
+`http://localhost:8080/openapi/v1.json`. Scalar umożliwia wysyłanie żądań do
+uruchomionego API. Adresy wymagają dostępu sieciowego do hosta i nie są dostępne
+w środowiskach Staging ani Production.
+
+Każde `dotnet build src/Web/Web.csproj` generuje kontrakt Development w pliku
+`src/Web/obj/openapi/netx.json`, bez uruchomionej bazy danych i bez migracji.
+Ten ignorowany przez Git plik wynikowy można udostępnić niezależnie od hosta.
+Przykładowe polecenie dla agenta: „Przeczytaj `src/Web/obj/openapi/netx.json`
+i zaimplementuj klienta endpointów examples”. Warstwa Presentation modułu
+Default pokazuje, jak dodawać metadane operacji i przykłady żądań w kolejnych
+modułach.
+
 ## Korzystanie z API
 
 Po uruchomieniu środowiska utwórz przykładowy rekord:

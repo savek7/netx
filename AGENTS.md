@@ -1,3 +1,7 @@
+## Language
+
+Communicate with the user in Polish and write repository documentation, including README files, in Polish.
+
 ## Agent skills
 
 ### Issue tracker
