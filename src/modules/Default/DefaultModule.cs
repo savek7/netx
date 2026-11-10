@@ -28,7 +28,7 @@ internal sealed class DefaultModuleImplementation : IModule
         {
             string connectionString = provider.GetRequiredService<IConfiguration>().GetConnectionString("Default")
                 ?? throw new InvalidOperationException("ConnectionStrings:Default is required.");
-            DefaultDatabase.Configure(options, connectionString, this);
+            options.UseNpgsql(connectionString);
         });
         services.AddScoped<IExampleRepository, ExampleRepository>();
         services.AddScoped<ExampleService>();

@@ -2,10 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Modules.Defaults.Infrastructure;
 using Modules.Defaults.PublicApi;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -38,12 +37,21 @@ public sealed class PostgresTests : IAsyncLifetime
                 Assert.Equal(DBNull.Value, await command.ExecuteScalarAsync());
             }
 
-            using (IServiceScope migrationScope = factory.Services.CreateScope())
-            {
-                DefaultDbContext context = migrationScope.ServiceProvider.GetRequiredService<DefaultDbContext>();
-                await context.Database.MigrateAsync();
-                Assert.Empty(await context.Database.GetPendingMigrationsAsync());
-            }
+            using Process migration = new();
+            migration.StartInfo.FileName = "dotnet";
+            migration.StartInfo.ArgumentList.Add("run");
+            migration.StartInfo.ArgumentList.Add("--project");
+            migration.StartInfo.ArgumentList.Add(Path.GetFullPath("../../../../../src/Migrations/Migrations.csproj", AppContext.BaseDirectory));
+            migration.StartInfo.ArgumentList.Add("--");
+            migration.StartInfo.ArgumentList.Add("Default");
+            migration.StartInfo.Environment["ConnectionStrings__Default"] = connectionString;
+            migration.StartInfo.RedirectStandardOutput = true;
+            migration.StartInfo.RedirectStandardError = true;
+            migration.Start();
+            Task<string> output = migration.StandardOutput.ReadToEndAsync();
+            Task<string> error = migration.StandardError.ReadToEndAsync();
+            await migration.WaitForExitAsync();
+            Assert.True(migration.ExitCode == 0, $"{await output}\n{await error}");
 
             await using (NpgsqlConnection connection = new(connectionString))
             {

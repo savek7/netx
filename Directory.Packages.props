@@ -10,7 +10,8 @@
 		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
 		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
 		<PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
-		<PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12" />
+		<PackageVersion Include="FluentMigrator" Version="8.0.1" />
+		<PackageVersion Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
 		<PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
 		<PackageVersion Include="Mono.Cecil" Version="0.11.6" />
 		<PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />

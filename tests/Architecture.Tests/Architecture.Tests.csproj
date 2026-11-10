@@ -15,6 +15,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Web\Web.csproj" />
+    <ProjectReference Include="..\..\src\Migrations\Migrations.csproj" />
     <ProjectReference Include="..\..\src\modules\*\*.csproj" />
     <ProjectReference Include="..\..\src\tools\*\*.csproj" />
     <ProjectReference Include="..\Architecture.Fixtures.First\Architecture.Fixtures.First.csproj" />
