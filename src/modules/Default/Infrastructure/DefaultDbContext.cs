@@ -7,9 +7,10 @@ internal sealed class DefaultDbContext(DbContextOptions<DefaultDbContext> option
 {
     public DbSet<Example> Examples => Set<Example>();
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "PostgreSQL schema names use lowercase module IDs.")]
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.HasDefaultSchema(DefaultDatabase.Schema);
+        modelBuilder.HasDefaultSchema(DefaultModule.Create().Id.ToLowerInvariant());
         modelBuilder.Entity<Example>(entity =>
         {
             entity.ToTable("Examples");

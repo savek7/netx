@@ -24,15 +24,14 @@ deklaracji, więc w razie potrzeby zależności należy zadeklarować wcześniej
 
 ## Środowisko lokalne
 
-Wymagane są .NET SDK 10 i Docker Compose. Uruchom bazę, przywróć lokalne
-narzędzie EF i zastosuj migracje (PowerShell):
+Wymagane są .NET SDK 10 i Docker Compose. Uruchom bazę i zastosuj migracje
+osobnym runnerem (PowerShell):
 
 ```powershell
 Copy-Item .env.example .env
 docker compose up -d postgres
-dotnet tool restore
 $env:ConnectionStrings__Default = 'Host=localhost;Database=netx;Username=netx;Password=netx-local-only'
-dotnet ef database update --project src/modules/Default --startup-project src/Web --context DefaultDbContext
+dotnet run --project src/Migrations -- Default
 docker compose up --build -d web
 ```
 
@@ -48,10 +47,15 @@ wyżej `ConnectionStrings__Default`. Dane dostępowe Compose są przeznaczone
 wyłącznie do lokalnego środowiska.
 
 Migracje są osobnym krokiem wdrożenia i nie są wykonywane przy starcie hosta.
-W produkcji należy zapewnić odpowiedni connection string przez konfigurację
-środowiska i uruchomić `dotnet ef database update` jako krok wdrożenia z
-uprawnieniami do zmiany schematu. Historia migracji znajduje się w schemacie
-`default`.
+Runner wymaga nazwy modułu i zmiennej `ConnectionStrings__Default`. Historia
+migracji FluentMigrator znajduje się w `default."Migrations"`.
+Obraz wdrożeniowy i blokada równoległych uruchomień są zakresem #13.
+
+FluentMigrator wybrano zgodnie z ADR 0002, aby jawnie pisać migracje niezależnie
+od modelu EF Core. EF Core generuje zmiany ze snapshotu modelu; FluentMigrator
+wymaga ręcznego utrzymania zgodności modelu i schematu. Wersjonowane skrypty SQL,
+np. DbUp, pozwalają używać natywnego SQL PostgreSQL, lecz wymagają ręcznego
+utrzymania skryptów. FluentMigrator pozwala pisać migracje w C# w module.
 
 Testy bez bazy: `dotnet test tests/Default.Tests/Default.Tests.csproj`.
 Pełny zestaw: `dotnet test netx.slnx`; testy integracyjne wymagają działającego
@@ -113,18 +117,14 @@ przykład do kopiowania, a nie domyślne miejsce na dowolne funkcje.
    projekt i podział na Domain, Application, Infrastructure, Presentation oraz
    PublicApi; projekt powinien implementować `IModule` i udostępniać publiczną
    statyczną fabrykę zwracającą `IModule`.
-2. Usuń przykładowe `Example`, repozytorium, serwis, endpointy i kontrakty oraz
-   ich rejestrację, a następnie dodaj rzeczywiste funkcje i kontrakty. Usuń
-   skopiowane migracje i snapshot z nowego modułu — nie usuwaj migracji `Default`.
-   Dostosuj lub usuń kontekst EF i jego fabrykę projektową. Nowe migracje mają
-   należeć do nowego kontekstu; wygenerowaną klasę migracji ustaw jako `internal`
-   z publicznym konstruktorem bez parametrów, aby pozostała wykrywalna przez EF.
-3. Nadaj modułowi unikalny `Id`. Zmień klucz połączenia w rejestracji i fabryce
-   projektowej (np. `ConnectionStrings:Orders` / `ConnectionStrings__Orders`).
-   Skonfiguruj w `OrdersDatabase` własny schemat i tabelę historii migracji;
-   w przykładzie schemat pochodzi z identyfikatora modułu. Dodaj odpowiedni
-   connection string w konfiguracji hosta oraz Compose. Nie kopiuj produkcyjnych
-   sekretów do repozytorium.
+2. Usuń przykładowe funkcje i skopiowane migracje. Przygotuj własne klasy
+   migracji FluentMigrator w `Infrastructure/Migrations`.
+3. Nadaj modułowi unikalny `Id`, własny schemat i connection string. Dodaj jego
+   referencję do `src/Migrations/Migrations.csproj` i wpis w tablicy `modules`
+   w `src/Migrations/Program.cs`: fabrykę `IModule`, assembly zawierające jego
+   migracje oraz nazwę zmiennej środowiskowej z connection stringiem. Runner
+   wybiera moduł po `Id` i skanuje tylko wskazane assembly. Wersje migracji
+   muszą być unikalne w obrębie modułu. Nie kopiuj sekretów do repozytorium.
 4. Dodaj projekt do rozwiązania i referencję hosta:
 
    ```powershell
@@ -137,16 +137,8 @@ przykład do kopiowania, a nie domyślne miejsce na dowolne funkcje.
    `RequiredDependencies` wpisz identyfikatory wymaganych modułów. Nieobecna lub
    wyłączona wymagana zależność uniemożliwia uruchomienie hosta. Usunięty projekt
    nie wymaga deklaracji; nie dodawaj automatycznego skanowania do hosta.
-5. Dla nowego kontekstu ustaw jego connection string i wygeneruj migrację, np.:
-
-   ```powershell
-   $env:ConnectionStrings__Orders = 'Host=localhost;Database=netx;Username=netx;Password=netx-local-only'
-   dotnet ef migrations add InitialOrders --project src/modules/Orders --startup-project src/Web --context OrdersDbContext --output-dir Infrastructure/Migrations
-   dotnet ef database update --project src/modules/Orders --startup-project src/Web --context OrdersDbContext
-   ```
-
-   Nazwy w przykładzie dostosuj do nowego modułu. Następnie uruchom testy i
-   sprawdź ścieżki HTTP oraz PublicApi nowego modułu.
+5. Przygotuj migrację początkową i uruchom ją osobnym krokiem. Następnie uruchom
+   testy i sprawdź ścieżki HTTP oraz PublicApi nowego modułu.
 
 ## Weryfikacja i granice izolacji
 

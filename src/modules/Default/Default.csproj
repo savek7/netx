@@ -4,10 +4,7 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="FluentMigrator" />
     <InternalsVisibleTo Include="Default.Tests" />
     <InternalsVisibleTo Include="Default.IntegrationTests" />
     <ProjectReference Include="..\..\tools\Tools.Modularity\Tools.Modularity.csproj" />
