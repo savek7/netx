@@ -10,6 +10,8 @@ namespace Migrations;
 internal sealed class ModuleVersionTable(IConventionSet conventionSet, IOptions<RunnerOptions> options, IModule module)
     : DefaultVersionTableMetaData(conventionSet, options)
 {
+    private readonly IModule module = module;
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308", Justification = "PostgreSQL schema names use lowercase module IDs.")]
     public override string SchemaName => module.Id.ToLowerInvariant();
     public override string TableName => module.MigrationsTableName;
