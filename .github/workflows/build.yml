@@ -28,3 +28,21 @@ jobs:
       run: dotnet test netx.slnx --no-build --verbosity normal
     - name: Build Docker image
       run: docker build -f src/Web/Dockerfile .
+    - name: Build migration image
+      run: docker build -f src/Migrations/Dockerfile -t netx-migrations:${{ github.sha }} .
+    - name: Check migration image starts
+      run: |
+        set +e
+        output=$(docker run --rm netx-migrations:${{ github.sha }} 2>&1)
+        status=$?
+        set -e
+        echo "$output"
+        test "$status" -eq 1
+        echo "$output" | grep -F 'Specify a registered module:'
+    - name: Save migration image
+      run: docker save netx-migrations:${{ github.sha }} -o netx-migrations.tar
+    - uses: actions/upload-artifact@v4
+      with:
+        name: netx-migrations
+        path: netx-migrations.tar
+        retention-days: 7
