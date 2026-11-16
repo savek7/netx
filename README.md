@@ -49,7 +49,39 @@ wyłącznie do lokalnego środowiska.
 Migracje są osobnym krokiem wdrożenia i nie są wykonywane przy starcie hosta.
 Runner wymaga nazwy modułu i zmiennej `ConnectionStrings__Default`. Historia
 migracji FluentMigrator znajduje się w `default."Migrations"`.
-Obraz wdrożeniowy i blokada równoległych uruchomień są zakresem #13.
+Ponowne uruchomienie pomija migracje zapisane w historii. Runner stosuje blokadę
+PostgreSQL dla modułu i bazy; równoległe uruchomienie tego samego modułu kończy
+się błędem. Blokada jest zwalniana po zakończeniu połączenia runnera.
+Runner wymaga połączenia bezpośredniego lub pośrednika z poolingiem sesji;
+pooling transakcji nie zachowuje blokady sesyjnej przez cały krok.
+
+## Migracje podczas wdrożenia
+
+CI buduje obraz migracji i udostępnia go jako artefakt `netx-migrations` dla
+danego przebiegu. Pobierz i rozpakuj artefakt z tego samego commita co wdrażany
+host, a następnie załaduj obraz i uruchom go przed hostem (PowerShell):
+
+```powershell
+docker load -i netx-migrations.tar
+$env:ConnectionStrings__Default = '<connection string do docelowej bazy>'
+docker run --rm -e ConnectionStrings__Default netx-migrations:<commit-sha> Default
+if ($LASTEXITCODE -ne 0) { throw 'Migracja Default nie powiodła się' }
+```
+
+Przekaż sekret z bezpiecznej konfiguracji środowiska, nie zapisuj go w repozytorium.
+Adres bazy musi być osiągalny z kontenera; `localhost` oznacza kontener, nie hosta.
+Uruchamiaj moduły kolejno, po jednym kontenerze dla każdego, i wdróż host dopiero
+po sukcesie wszystkich kroków. Kod `0` oznacza sukces, również bez nowych migracji;
+niezerowy kod i komunikat na stderr oznaczają błąd. Logi runnera wskazują migrację,
+a komunikat błędu moduł i przyczynę. Zachowaj logi zgodnie z zasadami ochrony danych.
+
+Po błędzie zatrzymaj wdrożenie i sprawdź logi, połączenie, uprawnienia oraz stan
+schematu i tabeli `default."Migrations"` w docelowej bazie. Jeśli tabela jeszcze
+nie istnieje, sprawdź stan schematu bez niej. Ustal, które zmiany rzeczywiście
+zostały zastosowane, i napraw przyczynę oraz ewentualny niespójny stan według
+procedury dla danej migracji; nie edytuj historii w ciemno. Nie zakładaj rollbacku
+całego wdrożenia: wcześniejsze migracje i moduły mogą pozostać zastosowane. Po
+weryfikacji uruchom ponownie ten sam krok i kontynuuj dopiero po sukcesie.
 
 FluentMigrator wybrano zgodnie z ADR 0002, aby jawnie pisać migracje niezależnie
 od modelu EF Core. EF Core generuje zmiany ze snapshotu modelu; FluentMigrator
