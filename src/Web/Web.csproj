@@ -21,6 +21,7 @@
 	  <InternalsVisibleTo Include="Architecture.Tests" />
 	  <ProjectReference Include="..\modules\Default\Default.csproj" />
 	  <ProjectReference Include="..\tools\Tools.Logging\Tools.Logging.csproj" />
+	  <ProjectReference Include="..\tools\Tools.Mediation\Tools.Mediation.csproj" />
 	</ItemGroup>
 
 </Project>

@@ -1,3 +1,6 @@
+using Modules.Defaults.PublicApi;
+using Tools.Mediation.Abstractions;
+using Tools.Results;
 using System.ComponentModel;
 using System.Text.Json.Nodes;
 using Modules.Defaults.Application;
@@ -49,12 +52,21 @@ internal static class ExampleEndpoints
         return TypedResults.Created($"/default/examples/{example.Id}", new ExampleResponse(example.Id, example.Name));
     }
 
-    private static async Task<Results<Ok<ExampleResponse>, NotFound>> Get([Description("The GUID of the example to retrieve.")] Guid id, ExampleService service, CancellationToken cancellationToken)
+    private static async Task<Results<Ok<ExampleResponse>, NotFound>> Get([Description("The GUID of the example to retrieve.")] Guid id, IQueryMediator mediator, CancellationToken cancellationToken)
     {
-        Example? example = await service.GetAsync(id, cancellationToken);
-        return example is null
-            ? TypedResults.NotFound()
-            : TypedResults.Ok(new ExampleResponse(example.Id, example.Name));
+        Result<ExampleRecord> result = await mediator.QueryAsync(new GetExampleById(id), cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            return TypedResults.Ok(new ExampleResponse(result.Value.Id, result.Value.Name));
+        }
+
+        if (result.Errors.All(error => error.Category == ErrorCategory.NotFound))
+        {
+            return TypedResults.NotFound();
+        }
+
+        throw new InvalidOperationException("Unexpected error while reading an example.");
     }
 }
 

@@ -56,7 +56,7 @@ public sealed class PostgresTests : IAsyncLifetime
 
             using IServiceScope scope = factory.Services.CreateScope();
             IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
-            Assert.Equal(created.Name, (await api.FindByIdAsync(httpId))?.Name);
+            Assert.Equal(created.Name, (await api.FindByIdAsync(httpId)).Value.Name);
             apiId = (await api.CreateAsync("From API")).Id;
             Assert.Equal("From API", (await client.GetFromJsonAsync<HttpExample>($"/default/examples/{apiId}"))?.Name);
         }
@@ -67,8 +67,8 @@ public sealed class PostgresTests : IAsyncLifetime
             Assert.Equal("From HTTP", (await client.GetFromJsonAsync<HttpExample>($"/default/examples/{httpId}"))?.Name);
             using IServiceScope scope = restarted.Services.CreateScope();
             IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
-            Assert.Equal("From API", (await api.FindByIdAsync(apiId))?.Name);
-            Assert.Equal("From HTTP", (await api.FindByIdAsync(httpId))?.Name);
+            Assert.Equal("From API", (await api.FindByIdAsync(apiId)).Value.Name);
+            Assert.Equal("From HTTP", (await api.FindByIdAsync(httpId)).Value.Name);
         }
     }
 

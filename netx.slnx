@@ -10,7 +10,9 @@
   </Folder>
   <Folder Name="/src/tools/">
     <Project Path="src/tools/Tools.Logging/Tools.Logging.csproj" Id="820fc883-cda0-49b6-a582-16fdc6e185a5" />
+    <Project Path="src/tools/Tools.Mediation/Tools.Mediation.csproj" />
     <Project Path="src/tools/Tools.Modularity/Tools.Modularity.csproj" />
+    <Project Path="src/tools/Tools.Results/Tools.Results.csproj" />
   </Folder>
   <Folder Name="/src/modules/">
     <Project Path="src/modules/Default/Default.csproj" />

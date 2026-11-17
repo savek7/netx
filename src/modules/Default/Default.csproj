@@ -7,6 +7,7 @@
     <PackageReference Include="FluentMigrator" />
     <InternalsVisibleTo Include="Default.Tests" />
     <InternalsVisibleTo Include="Default.IntegrationTests" />
+    <ProjectReference Include="..\..\tools\Tools.Mediation\Tools.Mediation.csproj" />
     <ProjectReference Include="..\..\tools\Tools.Modularity\Tools.Modularity.csproj" />
   </ItemGroup>
 </Project>

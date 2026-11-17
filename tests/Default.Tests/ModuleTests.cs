@@ -11,6 +11,7 @@ using Modules.Defaults.Application;
 using Modules.Defaults.Domain;
 using Modules.Defaults.PublicApi;
 using Tools.Modularity;
+using Tools.Mediation.MediatR;
 using Xunit;
 
 namespace Modules.Defaults.Tests;
@@ -25,6 +26,7 @@ public sealed class ModuleTests
         Assert.Equal("Migrations", module.MigrationsTableName);
         Assert.Empty(module.RequiredDependencies);
         ServiceCollection services = new();
+        services.AddMediation();
         module.RegisterServices(services);
         services.AddSingleton<IExampleRepository>(new FakeExampleRepository());
         using ServiceProvider provider = services.BuildServiceProvider();
@@ -34,8 +36,8 @@ public sealed class ModuleTests
         ExampleRecord created = await api.CreateAsync("From module");
 
         Assert.NotEqual(Guid.Empty, created.Id);
-        Assert.Equal(created, await api.FindByIdAsync(created.Id));
-        Assert.Null(await api.FindByIdAsync(Guid.NewGuid()));
+        Assert.Equal(created, (await api.FindByIdAsync(created.Id)).Value);
+        Assert.Equal(Tools.Results.ErrorCategory.NotFound, (await api.FindByIdAsync(Guid.NewGuid())).Errors[0].Category);
         await Assert.ThrowsAsync<ArgumentException>(() => api.CreateAsync("  "));
     }
 
@@ -58,7 +60,7 @@ public sealed class ModuleTests
         Assert.Equal(created, fetched);
         using IServiceScope scope = factory.Services.CreateScope();
         IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
-        Assert.Equal(created.Name, (await api.FindByIdAsync(created.Id))?.Name);
+        Assert.Equal(created.Name, (await api.FindByIdAsync(created.Id)).Value.Name);
 
         ExampleRecord fromApi = await api.CreateAsync("From API");
         HttpExample? fetchedFromApi = await client.GetFromJsonAsync<HttpExample>($"/default/examples/{fromApi.Id}");
