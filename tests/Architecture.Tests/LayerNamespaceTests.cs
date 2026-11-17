@@ -24,7 +24,11 @@ public sealed class LayerNamespaceTests
             foreach (string layer in layers)
             {
                 string folder = Path.Combine(directory, layer);
-                if (!Directory.Exists(folder)) continue;
+                if (!Directory.Exists(folder))
+                {
+                    continue;
+                }
+
                 foreach (string file in Directory.GetFiles(folder, "*.cs", SearchOption.AllDirectories))
                 {
                     string[] errors = LayerNamespaces.Check(root, Path.GetRelativePath(directory, file), File.ReadAllText(file));

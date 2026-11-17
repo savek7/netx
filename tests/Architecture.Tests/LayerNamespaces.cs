@@ -19,7 +19,9 @@ internal static class LayerNamespaces
             string name = string.Join('.', declaration.Ancestors().OfType<BaseNamespaceDeclarationSyntax>().Reverse().Select(item => item.Name.ToString()));
             string? namespaceLayer = Layers.FirstOrDefault(layer => name == root + "." + layer || name.StartsWith(root + "." + layer + ".", StringComparison.Ordinal));
             if ((folderLayer is not null && namespaceLayer != folderLayer) || (namespaceLayer is not null && namespaceLayer != folderLayer))
+            {
                 errors.Add($"{path}: namespace {name} does not match layer folder {folderLayer ?? "<root>"}");
+            }
         }
         return errors.ToArray();
     }

@@ -24,7 +24,10 @@ public sealed class ArchitectureRulesTests
         }
         finally
         {
-            foreach (AssemblyDefinition module in modules) module.Dispose();
+            foreach (AssemblyDefinition module in modules)
+            {
+                module.Dispose();
+            }
         }
     }
 

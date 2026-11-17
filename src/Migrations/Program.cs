@@ -37,9 +37,11 @@ try
         .AddLogging(builder => builder.AddFluentMigratorConsole());
     services.AddSingleton<IVersionTableMetaData, ModuleVersionTable>();
     services.AddSingleton<IMigrationSourceItem>(new ModuleMigrationSource(selected.Assembly));
+
     using ServiceProvider provider = services.BuildServiceProvider();
     using IServiceScope scope = provider.CreateScope();
     GenericProcessorBase processor = (GenericProcessorBase)scope.ServiceProvider.GetRequiredService<IMigrationProcessor>();
+
     using System.Data.IDbCommand lockCommand = processor.Connection.CreateCommand();
     lockCommand.CommandText = "SELECT pg_try_advisory_lock(hashtextextended(@name, 0))";
     System.Data.IDbDataParameter parameter = lockCommand.CreateParameter();
@@ -51,6 +53,7 @@ try
         await Console.Error.WriteLineAsync($"{selected.Module.Id} migration failed: another migration is already running for this module.");
         return 1;
     }
+
     scope.ServiceProvider.GetRequiredService<IMigrationRunner>().MigrateUp();
     return 0;
 }

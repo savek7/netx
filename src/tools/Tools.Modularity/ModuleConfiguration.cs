@@ -9,6 +9,7 @@ public sealed class ModuleConfiguration
     public ModuleConfiguration(IEnumerable<ModuleDeclaration> declarations)
     {
         ArgumentNullException.ThrowIfNull(declarations);
+
         ModuleDeclaration[] entries = declarations.ToArray();
         Validate(entries);
         Declarations = Array.AsReadOnly(entries);
@@ -19,6 +20,7 @@ public sealed class ModuleConfiguration
     public void RegisterServices(IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
+
         foreach (ModuleDeclaration entry in Declarations.Where(entry => entry.IsEnabled))
         {
             entry.Module.RegisterServices(services);
@@ -29,6 +31,7 @@ public sealed class ModuleConfiguration
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         ArgumentNullException.ThrowIfNull(environment);
+
         foreach (ModuleDeclaration entry in Declarations.Where(entry => entry.IsEnabled))
         {
             entry.Module.MapEndpoints(endpoints, environment);
@@ -115,6 +118,7 @@ public sealed class ModuleConfiguration
         {
             Visit(dependency, dependencies, visited, path);
         }
+
         path.RemoveAt(path.Count - 1);
     }
 }

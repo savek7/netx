@@ -17,10 +17,24 @@ internal static class ProjectBoundaries
         string[] moduleProjects = modules.ToArray();
         List<string> errors = [];
         foreach (string module in moduleProjects)
-            if (Reaches(graph, module, host)) errors.Add($"module -> host: {module} -> {host}");
+        {
+            if (Reaches(graph, module, host))
+            {
+                errors.Add($"module -> host: {module} -> {host}");
+            }
+        }
+
         foreach (string tool in tools)
+        {
             foreach (string module in moduleProjects)
-                if (Reaches(graph, tool, module)) errors.Add($"tool -> module: {tool} -> {module}");
+            {
+                if (Reaches(graph, tool, module))
+                {
+                    errors.Add($"tool -> module: {tool} -> {module}");
+                }
+            }
+        }
+
         return errors.ToArray();
     }
 
@@ -31,13 +45,22 @@ internal static class ProjectBoundaries
         pending.Push(start);
         while (pending.TryPop(out string? current))
         {
-            if (!visited.Add(current) || !graph.TryGetValue(current, out string[]? dependencies)) continue;
+            if (!visited.Add(current) || !graph.TryGetValue(current, out string[]? dependencies))
+            {
+                continue;
+            }
+
             foreach (string dependency in dependencies)
             {
-                if (string.Equals(dependency, target, StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(dependency, target, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
                 pending.Push(dependency);
             }
         }
+
         return false;
     }
 }

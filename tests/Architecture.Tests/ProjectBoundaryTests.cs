@@ -54,11 +54,16 @@ public sealed class ProjectBoundaryTests
                 assemblies.Add(project, AssemblyDefinition.ReadAssembly(path));
             }
             foreach ((string project, string[] references) in ProjectBoundaries.AssemblyEdges(assemblies))
+            {
                 graph[project] = graph[project].Concat(references).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+            }
         }
         finally
         {
-            foreach (AssemblyDefinition assembly in assemblies.Values) assembly.Dispose();
+            foreach (AssemblyDefinition assembly in assemblies.Values)
+            {
+                assembly.Dispose();
+            }
         }
         string[] modules = projects.Where(path => IsIn(path, Path.Combine(root, "modules"))).ToArray();
         string[] tools = projects.Where(path => IsIn(path, Path.Combine(root, "tools"))).ToArray();
