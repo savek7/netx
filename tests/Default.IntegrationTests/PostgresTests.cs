@@ -2,10 +2,9 @@ using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Modules.Defaults.Infrastructure;
 using Modules.Defaults.PublicApi;
 using Npgsql;
 using Testcontainers.PostgreSql;
@@ -38,12 +37,7 @@ public sealed class PostgresTests : IAsyncLifetime
                 Assert.Equal(DBNull.Value, await command.ExecuteScalarAsync());
             }
 
-            using (IServiceScope migrationScope = factory.Services.CreateScope())
-            {
-                DefaultDbContext context = migrationScope.ServiceProvider.GetRequiredService<DefaultDbContext>();
-                await context.Database.MigrateAsync();
-                Assert.Empty(await context.Database.GetPendingMigrationsAsync());
-            }
+            await RunMigration(connectionString);
 
             await using (NpgsqlConnection connection = new(connectionString))
             {
@@ -76,6 +70,50 @@ public sealed class PostgresTests : IAsyncLifetime
             Assert.Equal("From API", (await api.FindByIdAsync(apiId)).Value.Name);
             Assert.Equal("From HTTP", (await api.FindByIdAsync(httpId)).Value.Name);
         }
+    }
+
+    [Fact]
+    public async Task RunningMigrationAgainPreservesAppliedMigrationHistory()
+    {
+        string connectionString = postgres.GetConnectionString();
+        await RunMigration(connectionString);
+        await using NpgsqlConnection connection = new(connectionString);
+        await connection.OpenAsync();
+        await using NpgsqlCommand command = new("SELECT \"Version\", \"AppliedOn\" FROM \"default\".\"Migrations\"", connection);
+        await using (NpgsqlDataReader reader = await command.ExecuteReaderAsync())
+        {
+            Assert.True(await reader.ReadAsync());
+            long version = reader.GetInt64(0);
+            DateTime appliedOn = reader.GetDateTime(1);
+            Assert.False(await reader.ReadAsync());
+            await reader.CloseAsync();
+
+            await RunMigration(connectionString);
+            await using NpgsqlDataReader repeated = await command.ExecuteReaderAsync();
+            Assert.True(await repeated.ReadAsync());
+            Assert.Equal(version, repeated.GetInt64(0));
+            Assert.Equal(appliedOn, repeated.GetDateTime(1));
+            Assert.False(await repeated.ReadAsync());
+        }
+    }
+
+    private static async Task RunMigration(string connectionString)
+    {
+        using Process migration = new();
+        migration.StartInfo.FileName = "dotnet";
+        migration.StartInfo.ArgumentList.Add("run");
+        migration.StartInfo.ArgumentList.Add("--project");
+        migration.StartInfo.ArgumentList.Add(Path.GetFullPath("../../../../../src/Migrations/Migrations.csproj", AppContext.BaseDirectory));
+        migration.StartInfo.ArgumentList.Add("--");
+        migration.StartInfo.ArgumentList.Add("Default");
+        migration.StartInfo.Environment["ConnectionStrings__Default"] = connectionString;
+        migration.StartInfo.RedirectStandardOutput = true;
+        migration.StartInfo.RedirectStandardError = true;
+        migration.Start();
+        Task<string> output = migration.StandardOutput.ReadToEndAsync();
+        Task<string> error = migration.StandardError.ReadToEndAsync();
+        await migration.WaitForExitAsync();
+        Assert.True(migration.ExitCode == 0, $"{await output}\n{await error}");
     }
 
     private sealed class TestFactory(string connectionString) : WebApplicationFactory<Program>
