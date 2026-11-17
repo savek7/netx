@@ -2,6 +2,10 @@
 
 Communicate with the user in Polish and write repository documentation, including README files, in Polish.
 
+## C#
+
+Before writing or modifying C# code, read and apply the rules in `docs/agents/csharp-rules.md`.
+
 ## Agent skills
 
 ### Issue tracker
