@@ -8,6 +8,7 @@ using Microsoft.Extensions.Hosting;
 using Modules.Defaults;
 using Modules.Defaults.PublicApi;
 using Tools.Modularity;
+using Tools.Mediation.MediatR;
 using Xunit;
 
 namespace Modules.Defaults.Tests;
@@ -21,6 +22,7 @@ public sealed class ModuleConfigurationTests
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
+        builder.Services.AddMediation();
         IModule module = DefaultModule.Create();
         ModuleConfiguration configuration = new([
             builder.Environment.IsDevelopment() ? ModuleDeclaration.Enabled(module) : ModuleDeclaration.Disabled(module)
@@ -28,6 +30,7 @@ public sealed class ModuleConfigurationTests
         Assert.Equal(enabled, Assert.Single(configuration.Declarations).IsEnabled);
         configuration.RegisterServices(builder.Services);
         Assert.Equal(enabled, builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IExampleApi)));
+        Assert.Equal(enabled, builder.Services.Any(descriptor => descriptor.ServiceType == typeof(Tools.Mediation.Abstractions.IQueryHandler<Modules.Defaults.Application.GetExampleById, ExampleRecord>)));
         await using WebApplication app = builder.Build();
         configuration.MapEndpoints(app, app.Environment);
         await app.StartAsync();

@@ -97,7 +97,11 @@ using Modules.Defaults.PublicApi;
 
 // W metodzie serwisu, do którego wstrzyknięto IExampleApi api:
 ExampleRecord created = await api.CreateAsync("Przykład", cancellationToken);
-ExampleRecord? found = await api.FindByIdAsync(created.Id, cancellationToken);
+var result = await api.FindByIdAsync(created.Id, cancellationToken);
+if (result.IsSuccess)
+    Console.WriteLine(result.Value.Name);
+else
+    Console.WriteLine(result.Errors[0].Code);
 ```
 
 ## Nowy moduł z Default

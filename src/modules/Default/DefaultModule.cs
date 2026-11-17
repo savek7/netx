@@ -1,3 +1,4 @@
+using Tools.Mediation.MediatR;
 using Modules.Defaults.Application;
 using Modules.Defaults.Infrastructure;
 using Modules.Defaults.Presentation;
@@ -32,6 +33,7 @@ internal sealed class DefaultModuleImplementation : IModule
         });
         services.AddScoped<IExampleRepository, ExampleRepository>();
         services.AddScoped<ExampleService>();
+        services.AddQueryHandler<GetExampleById, GetExampleByIdHandler, ExampleRecord>();
         services.AddScoped<IExampleApi, ExampleApi>();
     }
 
