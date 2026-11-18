@@ -12,6 +12,7 @@ using Modules.Defaults.Domain;
 using Modules.Defaults.PublicApi;
 using Tools.Modularity;
 using Tools.Mediation.MediatR;
+using Tools.Results;
 using Xunit;
 
 namespace Modules.Defaults.Tests;
@@ -33,12 +34,19 @@ public sealed class ModuleTests
         using IServiceScope scope = provider.CreateScope();
         IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
 
-        ExampleRecord created = await api.CreateAsync("From module");
+        ExampleRecord created = (await api.CreateAsync("From module")).Value;
 
         Assert.NotEqual(Guid.Empty, created.Id);
         Assert.Equal(created, (await api.FindByIdAsync(created.Id)).Value);
-        Assert.Equal(Tools.Results.ErrorCategory.NotFound, (await api.FindByIdAsync(Guid.NewGuid())).Errors[0].Category);
-        await Assert.ThrowsAsync<ArgumentException>(() => api.CreateAsync("  "));
+        Assert.Equal(ErrorCategory.NotFound, (await api.FindByIdAsync(Guid.NewGuid())).Errors[0].Category);
+        foreach (string? invalidName in new string?[] { null, "", "  " })
+        {
+            Result<ExampleRecord> invalid = await api.CreateAsync(invalidName);
+            Assert.True(invalid.IsFailure);
+            Error error = Assert.Single(invalid.Errors);
+            Assert.Equal(ErrorCategory.Validation, error.Category);
+            Assert.Equal("example.invalid_name", error.Code);
+        }
     }
 
     [Fact]
@@ -62,7 +70,7 @@ public sealed class ModuleTests
         IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
         Assert.Equal(created.Name, (await api.FindByIdAsync(created.Id)).Value.Name);
 
-        ExampleRecord fromApi = await api.CreateAsync("From API");
+        ExampleRecord fromApi = (await api.CreateAsync("From API")).Value;
         HttpExample? fetchedFromApi = await client.GetFromJsonAsync<HttpExample>($"/default/examples/{fromApi.Id}");
         Assert.Equal(fromApi.Name, fetchedFromApi?.Name);
         using HttpResponseMessage missing = await client.GetAsync(new Uri($"/default/examples/{Guid.NewGuid()}", UriKind.Relative));

@@ -9,6 +9,27 @@ namespace Modules.Defaults.Tests;
 public sealed class ResultAndMediationTests
 {
     [Fact]
+    public void ResultWithoutValueEnforcesItsInvariants()
+    {
+        Error first = new("first", "First error", ErrorCategory.Validation);
+        Error second = new("second", "Second error", ErrorCategory.Conflict);
+        Error[] errors = [first, second];
+
+        Result failure = Result.Failure(errors);
+        errors[0] = second;
+
+        Assert.True(failure.IsFailure);
+        Assert.Equal([first, second], failure.Errors);
+        Assert.Throws<ArgumentException>(() => Result.Failure());
+        Assert.Throws<ArgumentException>(() => Result.Failure(first, null!));
+        Assert.Throws<ArgumentNullException>(() => Result.Failure(null!));
+
+        Result success = Result.Success();
+        Assert.True(success.IsSuccess);
+        Assert.Empty(success.Errors);
+    }
+
+    [Fact]
     public void ResultsEnforceTheirInvariants()
     {
         Error first = new("first", "First error", ErrorCategory.Validation);

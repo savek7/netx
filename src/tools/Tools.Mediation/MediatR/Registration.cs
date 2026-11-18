@@ -15,6 +15,31 @@ public static class MediationRegistration
 
         services.AddMediatR(configuration => configuration.RegisterServicesFromAssembly(typeof(MediationRegistration).Assembly));
         services.TryAddScoped<IQueryMediator, QueryMediator>();
+        services.TryAddScoped<ICommandMediator, CommandMediator>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCommandHandler<TCommand, THandler, T>(this IServiceCollection services)
+        where TCommand : ICommand<T>
+        where THandler : class, ICommandHandler<TCommand, T>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddTransient<IRequestHandler<CommandRequest<T>, Result<T>>, CommandRequestHandler<T>>();
+        services.AddScoped<ICommandHandler<TCommand, T>, THandler>();
+
+        return services;
+    }
+
+    public static IServiceCollection AddCommandHandler<TCommand, THandler>(this IServiceCollection services)
+        where TCommand : ICommand
+        where THandler : class, ICommandHandler<TCommand>
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.TryAddTransient<IRequestHandler<CommandRequest, Result>, CommandRequestHandler>();
+        services.AddScoped<ICommandHandler<TCommand>, THandler>();
 
         return services;
     }
@@ -30,6 +55,8 @@ public static class MediationRegistration
 
         return services;
     }
+
+
 }
 
 internal sealed record QueryRequest<T>(IQuery<T> Query) : IRequest<Result<T>>;
