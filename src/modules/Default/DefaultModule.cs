@@ -32,7 +32,7 @@ internal sealed class DefaultModuleImplementation : IModule
             options.UseNpgsql(connectionString);
         });
         services.AddScoped<IExampleRepository, ExampleRepository>();
-        services.AddScoped<ExampleService>();
+        services.AddCommandHandler<CreateExample, CreateExampleHandler, ExampleRecord>();
         services.AddQueryHandler<GetExampleById, GetExampleByIdHandler, ExampleRecord>();
         services.AddScoped<IExampleApi, ExampleApi>();
     }

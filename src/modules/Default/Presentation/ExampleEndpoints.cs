@@ -4,7 +4,6 @@ using Tools.Results;
 using System.ComponentModel;
 using System.Text.Json.Nodes;
 using Modules.Defaults.Application;
-using Modules.Defaults.Domain;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -41,15 +40,22 @@ internal static class ExampleEndpoints
             });
     }
 
-    private static async Task<Results<Created<ExampleResponse>, BadRequest>> Create(CreateExampleRequest request, ExampleService service, CancellationToken cancellationToken)
+    private static async Task<Results<Created<ExampleResponse>, BadRequest>> Create(CreateExampleRequest request, ICommandMediator mediator, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
+        Result<ExampleRecord> result = await mediator.SendAsync(new CreateExample(request.Name), cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            ExampleRecord example = result.Value;
+            return TypedResults.Created($"/default/examples/{example.Id}", new ExampleResponse(example.Id, example.Name));
+        }
+
+        if (result.Errors.All(error => error.Category == ErrorCategory.Validation))
         {
             return TypedResults.BadRequest();
         }
 
-        Example example = await service.CreateAsync(request.Name, cancellationToken);
-        return TypedResults.Created($"/default/examples/{example.Id}", new ExampleResponse(example.Id, example.Name));
+        throw new InvalidOperationException("Unexpected error while creating an example.");
     }
 
     private static async Task<Results<Ok<ExampleResponse>, NotFound>> Get([Description("The GUID of the example to retrieve.")] Guid id, IQueryMediator mediator, CancellationToken cancellationToken)

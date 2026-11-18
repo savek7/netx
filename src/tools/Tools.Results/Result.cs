@@ -31,6 +31,32 @@ public sealed record Error
     public ErrorCategory Category { get; }
 }
 
+public sealed class Result
+{
+    private Result(IReadOnlyList<Error> errors) => Errors = errors;
+
+    public bool IsSuccess => Errors.Count == 0;
+    public bool IsFailure => !IsSuccess;
+    public IReadOnlyList<Error> Errors { get; }
+
+    public static Result Success() => new(Array.Empty<Error>());
+
+    public static Result Failure(params Error[] errors) => new(CopyFailureErrors(errors));
+
+    internal static IReadOnlyList<Error> CopyFailureErrors(Error[] errors)
+    {
+        ArgumentNullException.ThrowIfNull(errors);
+
+        Error[] copy = (Error[])errors.Clone();
+        if (copy.Length == 0 || Array.Exists(copy, error => error is null))
+        {
+            throw new ArgumentException("At least one non-null error is required.", nameof(errors));
+        }
+
+        return Array.AsReadOnly(copy);
+    }
+}
+
 public sealed class Result<T>
 {
     private readonly T? value;
@@ -42,9 +68,9 @@ public sealed class Result<T>
         Errors = Array.Empty<Error>();
     }
 
-    private Result(Error[] errors)
+    private Result(IReadOnlyList<Error> errors)
     {
-        Errors = Array.AsReadOnly(errors);
+        Errors = errors;
     }
 
     public bool IsSuccess { get; }
@@ -59,15 +85,5 @@ public sealed class Result<T>
         return new(value);
     }
 
-    public static Result<T> Failure(params Error[] errors)
-    {
-        ArgumentNullException.ThrowIfNull(errors);
-
-        if (errors.Length == 0 || Array.Exists(errors, error => error is null))
-        {
-            throw new ArgumentException("At least one non-null error is required.", nameof(errors));
-        }
-
-        return new((Error[])errors.Clone());
-    }
+    public static Result<T> Failure(params Error[] errors) => new(Result.CopyFailureErrors(errors));
 }

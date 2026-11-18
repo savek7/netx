@@ -130,15 +130,32 @@ serwisie, bez HTTP i dostępu do repozytorium lub kontekstu bazy `Default`:
 
 ```csharp
 using Modules.Defaults.PublicApi;
+using Tools.Results;
 
 // W metodzie serwisu, do którego wstrzyknięto IExampleApi api:
-ExampleRecord created = await api.CreateAsync("Przykład", cancellationToken);
-var result = await api.FindByIdAsync(created.Id, cancellationToken);
+Result<ExampleRecord> creation = await api.CreateAsync("Przykład", cancellationToken);
+if (creation.IsFailure)
+{
+    Console.WriteLine(creation.Errors[0].Code);
+    return;
+}
+
+Result<ExampleRecord> result = await api.FindByIdAsync(creation.Value.Id, cancellationToken);
 if (result.IsSuccess)
+{
     Console.WriteLine(result.Value.Name);
+}
 else
+{
     Console.WriteLine(result.Errors[0].Code);
+}
 ```
+
+Tworzenie przez HTTP i `IExampleApi` wykonuje to samo polecenie `CreateExample`.
+Obie metody `IExampleApi` zwracają `Result<ExampleRecord>`. Brak nazwy oraz nazwa
+pusta lub złożona z samych białych znaków powodują błąd `Validation` z kodem
+`example.invalid_name`. Endpoint mapuje go na HTTP 400, a po udanym utworzeniu
+zwraca HTTP 201 i nagłówek `Location`.
 
 ## Nowy moduł z Default
 

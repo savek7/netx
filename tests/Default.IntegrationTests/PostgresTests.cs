@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Modules.Defaults.PublicApi;
 using Npgsql;
 using Testcontainers.PostgreSql;
+using Tools.Results;
 using Xunit;
 
 namespace Modules.Defaults.IntegrationTests;
@@ -57,14 +58,19 @@ public sealed class PostgresTests : IAsyncLifetime
             using IServiceScope scope = factory.Services.CreateScope();
             IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
             Assert.Equal(created.Name, (await api.FindByIdAsync(httpId)).Value.Name);
-            apiId = (await api.CreateAsync("From API")).Id;
+            apiId = (await api.CreateAsync("From API")).Value.Id;
             Assert.Equal("From API", (await client.GetFromJsonAsync<HttpExample>($"/default/examples/{apiId}"))?.Name);
+
+            using HttpResponseMessage invalid = await client.PostAsJsonAsync("/default/examples", new { Name = "  " });
+            Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+            Assert.Equal(ErrorCategory.Validation, Assert.Single((await api.CreateAsync("  ")).Errors).Category);
         }
 
         await using (TestFactory restarted = new(connectionString))
         {
             using HttpClient client = restarted.CreateClient();
             Assert.Equal("From HTTP", (await client.GetFromJsonAsync<HttpExample>($"/default/examples/{httpId}"))?.Name);
+            Assert.Equal("From API", (await client.GetFromJsonAsync<HttpExample>($"/default/examples/{apiId}"))?.Name);
             using IServiceScope scope = restarted.Services.CreateScope();
             IExampleApi api = scope.ServiceProvider.GetRequiredService<IExampleApi>();
             Assert.Equal("From API", (await api.FindByIdAsync(apiId)).Value.Name);
