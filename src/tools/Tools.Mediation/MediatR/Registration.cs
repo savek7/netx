@@ -20,6 +20,16 @@ public static class MediationRegistration
         return services;
     }
 
+    public static IServiceCollection AddMediation(this IServiceCollection services, IEnumerable<Type> messageCandidates)
+    {
+        ArgumentNullException.ThrowIfNull(messageCandidates);
+
+        services.AddMediation();
+        services.AddHostedService(_ => new HandlerConfigurationValidator(services, messageCandidates));
+
+        return services;
+    }
+
     public static IServiceCollection AddCommandHandler<TCommand, THandler, T>(this IServiceCollection services)
         where TCommand : ICommand<T>
         where THandler : class, ICommandHandler<TCommand, T>

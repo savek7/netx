@@ -22,6 +22,19 @@ wielkości liter. `ModuleConfiguration` przed rejestracją usług sprawdza dupli
 brakujące lub wyłączone zależności oraz cykle. Usługi są rejestrowane w kolejności
 deklaracji, więc w razie potrzeby zależności należy zadeklarować wcześniej.
 
+## Handlery poleceń i zapytań
+
+Każdy konkretny komunikat `IQuery<T>`, `ICommand<T>` lub `ICommand` we włączonym
+module musi mieć dokładnie jeden handler. Zarejestruj go w `IModule.RegisterServices`
+przez `AddQueryHandler` lub `AddCommandHandler`.
+
+Podczas startu host sprawdza komunikaty z zestawów włączonych modułów i porównuje
+je z końcową konfiguracją DI. Brak handlera lub więcej niż jedna rejestracja
+zatrzymuje start przed obsługą żądań. Komunikat błędu wskazuje typ komunikatu
+i rodzaj problemu. Sprawdzenie nie tworzy handlerów ani ich zależności i nie
+wymaga bazy danych. Wyłączone moduły nie rejestrują handlerów i są pomijane
+podczas tego sprawdzenia.
+
 ## Środowisko lokalne
 
 Wymagane są .NET SDK 10 i Docker Compose. Uruchom bazę i zastosuj migracje

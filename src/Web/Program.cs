@@ -1,7 +1,6 @@
 using System.Reflection;
 using Scalar.AspNetCore;
 using Tools.Logging;
-using Tools.Mediation.MediatR;
 using Web;
 
 var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
@@ -17,10 +16,8 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 
 builder.Services.AddLogging(builder.Logging, builder.Configuration);
-builder.Services.AddMediation();
-
 var modules = HostModules.Create(builder.Environment);
-modules.RegisterServices(builder.Services);
+HostModules.RegisterServices(builder.Services, modules);
 
 var app = builder.Build();
 
