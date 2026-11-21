@@ -1,20 +1,134 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Modules.Defaults;
+using Modules.Defaults.Application;
 using Modules.Defaults.PublicApi;
+using Tools.Mediation.Abstractions;
 using Tools.Modularity;
 using Tools.Mediation.MediatR;
+using Tools.Results;
+using Web;
 using Xunit;
 
 namespace Modules.Defaults.Tests;
 
 public sealed class ModuleConfigurationTests
 {
+    [Fact]
+    public async Task MissingHandlerPreventsHostStartup()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        ModuleConfiguration configuration = new([ModuleDeclaration.Enabled(DefaultModule.Create())]);
+        HostModules.RegisterServices(builder.Services, configuration);
+        builder.Services.RemoveAll<IQueryHandler<GetExampleById, ExampleRecord>>();
+        await using WebApplication app = builder.Build();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
+
+        Assert.Contains(typeof(GetExampleById).FullName!, error.Message, StringComparison.Ordinal);
+        Assert.Contains("No handler", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DuplicateHandlersPreventHostStartup()
+    {
+        await using WebApplicationFactory<Program> factory = new();
+        await using WebApplicationFactory<Program> duplicate = factory.WithWebHostBuilder(builder =>
+            builder.ConfigureTestServices(services =>
+                services.AddCommandHandler<CreateExample, CreateExampleHandler, ExampleRecord>()));
+
+        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => duplicate.CreateClient());
+
+        Assert.Contains(typeof(CreateExample).FullName!, error.Message, StringComparison.Ordinal);
+        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MissingHandlerForCommandWithoutValuePreventsHostStartup()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMediation([typeof(NoValueCommand)]);
+        await using WebApplication app = builder.Build();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
+
+        Assert.Contains(typeof(NoValueCommand).FullName!, error.Message, StringComparison.Ordinal);
+        Assert.Contains("No handler", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DuplicateHandlersForClosedGenericQueryPreventHostStartup()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMediation([typeof(GenericQuery<>)]);
+        builder.Services.AddQueryHandler<GenericQuery<int>, GenericQueryHandler<int>, int>();
+        builder.Services.AddQueryHandler<GenericQuery<int>, GenericQueryHandler<int>, int>();
+        await using WebApplication app = builder.Build();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
+
+        Assert.Contains(typeof(GenericQuery<int>).FullName!, error.Message, StringComparison.Ordinal);
+        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MatchingOpenGenericHandlerCountsAsDuplicate()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMediation([typeof(NoValueCommand)]);
+        builder.Services.AddScoped(_ => new ScopedDependency(Guid.NewGuid()));
+        builder.Services.AddCommandHandler<NoValueCommand, ScopedHandler>();
+        builder.Services.AddScoped(typeof(ICommandHandler<>), typeof(OpenCommandHandler<>));
+        await using WebApplication app = builder.Build();
+
+        InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
+
+        Assert.Contains(typeof(NoValueCommand).FullName!, error.Message, StringComparison.Ordinal);
+        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ValidHostStartsWithoutResolvingScopedDependencyAndUsesInvocationScope()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = Environments.Development });
+        builder.WebHost.UseTestServer();
+        builder.Services.AddMediation([typeof(ScopedCommand), typeof(NoValueCommand)]);
+        builder.Services.AddCommandHandler<ScopedCommand, ScopedHandler, Guid>();
+        builder.Services.AddCommandHandler<NoValueCommand, ScopedHandler>();
+        int scopedInstances = 0;
+        builder.Services.AddScoped(_ =>
+        {
+            scopedInstances++;
+            return new ScopedDependency(Guid.NewGuid());
+        });
+        await using WebApplication app = builder.Build();
+
+        await app.StartAsync();
+
+        Assert.Equal(0, scopedInstances);
+        using IServiceScope firstScope = app.Services.CreateScope();
+        using IServiceScope secondScope = app.Services.CreateScope();
+        ICommandMediator firstMediator = firstScope.ServiceProvider.GetRequiredService<ICommandMediator>();
+        ICommandMediator secondMediator = secondScope.ServiceProvider.GetRequiredService<ICommandMediator>();
+        Guid firstId = (await firstMediator.SendAsync(new ScopedCommand())).Value;
+        Guid secondId = (await secondMediator.SendAsync(new ScopedCommand())).Value;
+        Assert.Equal(firstScope.ServiceProvider.GetRequiredService<ScopedDependency>().Id, firstId);
+        Assert.Equal(secondScope.ServiceProvider.GetRequiredService<ScopedDependency>().Id, secondId);
+        Assert.NotEqual(firstId, secondId);
+        Assert.True((await firstMediator.SendAsync(new NoValueCommand())).IsSuccess);
+    }
+
     [Theory]
     [InlineData("Development", true)]
     [InlineData("Testing", false)]
@@ -22,13 +136,12 @@ public sealed class ModuleConfigurationTests
     {
         WebApplicationBuilder builder = WebApplication.CreateBuilder(new WebApplicationOptions { EnvironmentName = environment });
         builder.WebHost.UseTestServer();
-        builder.Services.AddMediation();
         IModule module = DefaultModule.Create();
         ModuleConfiguration configuration = new([
             builder.Environment.IsDevelopment() ? ModuleDeclaration.Enabled(module) : ModuleDeclaration.Disabled(module)
         ]);
         Assert.Equal(enabled, Assert.Single(configuration.Declarations).IsEnabled);
-        configuration.RegisterServices(builder.Services);
+        HostModules.RegisterServices(builder.Services, configuration);
         Assert.Equal(enabled, builder.Services.Any(descriptor => descriptor.ServiceType == typeof(IExampleApi)));
         Assert.Equal(enabled, builder.Services.Any(descriptor => descriptor.ServiceType == typeof(Tools.Mediation.Abstractions.IQueryHandler<Modules.Defaults.Application.GetExampleById, ExampleRecord>)));
         await using WebApplication app = builder.Build();
@@ -40,6 +153,25 @@ public sealed class ModuleConfigurationTests
             .OfType<string>()
             .ToArray();
         Assert.Equal(enabled, mappedRoutes.Any(route => route.TrimEnd('/').Equals("/default/examples", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task DisabledModuleWithMissingAndDuplicateHandlersDoesNotBlockActiveModule()
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        ModuleConfiguration configuration = new([
+            ModuleDeclaration.Enabled(DefaultModule.Create()),
+            ModuleDeclaration.Disabled(new InvalidMediationModule())
+        ]);
+        HostModules.RegisterServices(builder.Services, configuration);
+        await using WebApplication app = builder.Build();
+
+        await app.StartAsync();
+
+        using IServiceScope scope = app.Services.CreateScope();
+        Assert.True(app.Services.GetRequiredService<IServiceProviderIsService>().IsService(typeof(IExampleApi)));
+        Assert.Empty(scope.ServiceProvider.GetServices<ICommandHandler<ScopedCommand, Guid>>());
     }
 
     [Fact]
@@ -186,6 +318,58 @@ public sealed class ModuleConfigurationTests
     }
 
     private sealed record Marker(string Id);
+
+    private sealed record NoValueCommand : ICommand;
+
+    private sealed record ScopedCommand : ICommand<Guid>;
+
+    private sealed record ScopedDependency(Guid Id);
+
+    private readonly record struct GenericQuery<T>(T Value) : IQuery<T>;
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Created by dependency injection.")]
+    private sealed class GenericQueryHandler<T> : IQueryHandler<GenericQuery<T>, T>
+    {
+        public Task<Result<T>> HandleAsync(GenericQuery<T> query, CancellationToken cancellationToken)
+            => Task.FromResult(Result<T>.Success(query.Value));
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Created by dependency injection.")]
+    private sealed class OpenCommandHandler<T> : ICommandHandler<T> where T : ICommand
+    {
+        public Task<Result> HandleAsync(T command, CancellationToken cancellationToken)
+            => Task.FromResult(Result.Success());
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812", Justification = "Created by dependency injection.")]
+    private sealed class ScopedHandler(ScopedDependency dependency)
+        : ICommandHandler<ScopedCommand, Guid>, ICommandHandler<NoValueCommand>
+    {
+        private readonly ScopedDependency dependency = dependency;
+
+        public Task<Result<Guid>> HandleAsync(ScopedCommand command, CancellationToken cancellationToken)
+            => Task.FromResult(Result<Guid>.Success(dependency.Id));
+
+        public Task<Result> HandleAsync(NoValueCommand command, CancellationToken cancellationToken)
+            => Task.FromResult(Result.Success());
+    }
+
+    private sealed class InvalidMediationModule : IModule
+    {
+        public string Id => "InvalidMediation";
+        public IReadOnlyCollection<string> RequiredDependencies => [];
+
+        public void RegisterServices(IServiceCollection services)
+        {
+            services.AddScoped(_ => new ScopedDependency(Guid.NewGuid()));
+            services.AddCommandHandler<ScopedCommand, ScopedHandler, Guid>();
+            services.AddCommandHandler<ScopedCommand, ScopedHandler, Guid>();
+        }
+
+        public void MapEndpoints(IEndpointRouteBuilder endpoints, IHostEnvironment environment)
+        {
+        }
+    }
 
     private sealed class TestModule(string id, params string[] dependencies) : IModule
     {
