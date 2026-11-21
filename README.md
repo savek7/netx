@@ -28,8 +28,9 @@ Każdy konkretny komunikat `IQuery<T>`, `ICommand<T>` lub `ICommand` we włączo
 module musi mieć dokładnie jeden handler. Zarejestruj go w `IModule.RegisterServices`
 przez `AddQueryHandler` lub `AddCommandHandler`.
 
-Podczas startu host sprawdza komunikaty z zestawów włączonych modułów i porównuje
-je z końcową konfiguracją DI. Brak handlera lub więcej niż jedna rejestracja
+Każdy moduł ma osobny projekt `.csproj` i własny zestaw. Podczas startu host
+sprawdza komunikaty z zestawów włączonych modułów i porównuje je z końcową
+konfiguracją DI. Brak handlera lub więcej niż jedna rejestracja
 zatrzymuje start przed obsługą żądań. Komunikat błędu wskazuje typ komunikatu
 i rodzaj problemu. Sprawdzenie nie tworzy handlerów ani ich zależności i nie
 wymaga bazy danych. Wyłączone moduły nie rejestrują handlerów i są pomijane

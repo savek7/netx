@@ -16,6 +16,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddOpenApi();
 
 builder.Services.AddLogging(builder.Logging, builder.Configuration);
+
 var modules = HostModules.Create(builder.Environment);
 HostModules.RegisterServices(builder.Services, modules);
 

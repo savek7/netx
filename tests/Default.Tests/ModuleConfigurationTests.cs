@@ -33,8 +33,7 @@ public sealed class ModuleConfigurationTests
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
 
-        Assert.Contains(typeof(GetExampleById).FullName!, error.Message, StringComparison.Ordinal);
-        Assert.Contains("No handler", error.Message, StringComparison.Ordinal);
+        AssertHandlerConfigurationError(error, typeof(GetExampleById), "No handler");
     }
 
     [Fact]
@@ -47,8 +46,7 @@ public sealed class ModuleConfigurationTests
 
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => duplicate.CreateClient());
 
-        Assert.Contains(typeof(CreateExample).FullName!, error.Message, StringComparison.Ordinal);
-        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+        AssertHandlerConfigurationError(error, typeof(CreateExample), "Multiple handlers (2)");
     }
 
     [Fact]
@@ -61,8 +59,7 @@ public sealed class ModuleConfigurationTests
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
 
-        Assert.Contains(typeof(NoValueCommand).FullName!, error.Message, StringComparison.Ordinal);
-        Assert.Contains("No handler", error.Message, StringComparison.Ordinal);
+        AssertHandlerConfigurationError(error, typeof(NoValueCommand), "No handler");
     }
 
     [Fact]
@@ -77,8 +74,7 @@ public sealed class ModuleConfigurationTests
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
 
-        Assert.Contains(typeof(GenericQuery<int>).FullName!, error.Message, StringComparison.Ordinal);
-        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+        AssertHandlerConfigurationError(error, typeof(GenericQuery<int>), "Multiple handlers (2)");
     }
 
     [Fact]
@@ -94,8 +90,7 @@ public sealed class ModuleConfigurationTests
 
         InvalidOperationException error = await Assert.ThrowsAsync<InvalidOperationException>(() => app.StartAsync());
 
-        Assert.Contains(typeof(NoValueCommand).FullName!, error.Message, StringComparison.Ordinal);
-        Assert.Contains("Multiple handlers (2)", error.Message, StringComparison.Ordinal);
+        AssertHandlerConfigurationError(error, typeof(NoValueCommand), "Multiple handlers (2)");
     }
 
     [Fact]
@@ -315,6 +310,11 @@ public sealed class ModuleConfigurationTests
     {
         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() => new ModuleConfiguration([ModuleDeclaration.Enabled(new TestModule(id))]));
         Assert.Contains("module ID", error.Message, StringComparison.Ordinal);
+    }
+
+    private static void AssertHandlerConfigurationError(InvalidOperationException error, Type messageType, string diagnostic)
+    {
+        Assert.Contains($"{diagnostic} registered for '{messageType.FullName}'", error.Message, StringComparison.Ordinal);
     }
 
     private sealed record Marker(string Id);
