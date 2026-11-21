@@ -31,14 +31,12 @@ internal sealed class CommandRequestHandler<T>(IServiceProvider services) : IReq
 {
     public Task<Result<T>> Handle(CommandRequest<T> request, CancellationToken cancellationToken)
     {
-        Type handlerType = typeof(ICommandHandler<,>).MakeGenericType(request.Command.GetType(), typeof(T));
-
         try
         {
             return (Task<Result<T>>)typeof(CommandRequestHandler<T>)
                 .GetMethod(nameof(Invoke), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(request.Command.GetType())
-                .Invoke(null, [services.GetRequiredService(handlerType), request.Command, cancellationToken])!;
+                .Invoke(null, [services, request.Command, cancellationToken])!;
         }
         catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is not null)
         {
@@ -47,22 +45,24 @@ internal sealed class CommandRequestHandler<T>(IServiceProvider services) : IReq
         }
     }
 
-    private static Task<Result<T>> Invoke<TCommand>(ICommandHandler<TCommand, T> handler, TCommand command, CancellationToken token)
-        where TCommand : ICommand<T> => handler.HandleAsync(command, token);
+    private static Task<Result<T>> Invoke<TCommand>(IServiceProvider services, TCommand command, CancellationToken token)
+        where TCommand : ICommand<T>
+    {
+        return MediationPipeline.RunAsync(
+            services, command, () => services.GetRequiredService<ICommandHandler<TCommand, T>>().HandleAsync(command, token), token);
+    }
 }
 
 internal sealed class CommandRequestHandler(IServiceProvider services) : IRequestHandler<CommandRequest, Result>
 {
     public Task<Result> Handle(CommandRequest request, CancellationToken cancellationToken)
     {
-        Type handlerType = typeof(ICommandHandler<>).MakeGenericType(request.Command.GetType());
-
         try
         {
             return (Task<Result>)typeof(CommandRequestHandler)
                 .GetMethod(nameof(Invoke), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(request.Command.GetType())
-                .Invoke(null, [services.GetRequiredService(handlerType), request.Command, cancellationToken])!;
+                .Invoke(null, [services, request.Command, cancellationToken])!;
         }
         catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is not null)
         {
@@ -71,6 +71,10 @@ internal sealed class CommandRequestHandler(IServiceProvider services) : IReques
         }
     }
 
-    private static Task<Result> Invoke<TCommand>(ICommandHandler<TCommand> handler, TCommand command, CancellationToken token)
-        where TCommand : ICommand => handler.HandleAsync(command, token);
+    private static Task<Result> Invoke<TCommand>(IServiceProvider services, TCommand command, CancellationToken token)
+        where TCommand : ICommand
+    {
+        return MediationPipeline.RunAsync(
+            services, command, () => services.GetRequiredService<ICommandHandler<TCommand>>().HandleAsync(command, token), token);
+    }
 }

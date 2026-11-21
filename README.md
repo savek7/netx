@@ -157,6 +157,54 @@ pusta lub złożona z samych białych znaków powodują błąd `Validation` z ko
 `example.invalid_name`. Endpoint mapuje go na HTTP 400, a po udanym utworzeniu
 zwraca HTTP 201 i nagłówek `Location`.
 
+## Pipeline poleceń i zapytań
+
+Zachowanie implementuje `IPipelineBehavior<TMessage, TResult>` z przestrzeni nazw
+`Tools.Mediation.Abstractions`. `TMessage` to konkretny typ komunikatu, a `TResult`
+to `Result<T>` dla `IQuery<T>` i `ICommand<T>` lub `Result` dla `ICommand`.
+Zarejestruj zachowanie w DI modułu, obok handlera danego komunikatu.
+
+Poniższa rejestracja dotyczy przykładowego zapytania `GetTitle`.
+
+```csharp
+services.AddScoped<IPipelineBehavior<GetTitle, Result<string>>, PreviewTitleBehavior>();
+```
+
+Przykładowe zachowanie zwraca tytuł zastępczy dla podglądu. Dla zwykłego odczytu
+wywołuje dalszą część pipeline’u i formatuje otrzymany tytuł. Niepowodzenie
+zwraca wraz ze wszystkimi błędami.
+
+```csharp
+using Tools.Mediation.Abstractions;
+using Tools.Results;
+
+internal sealed record GetTitle(bool Preview) : IQuery<string>;
+
+internal sealed class PreviewTitleBehavior : IPipelineBehavior<GetTitle, Result<string>>
+{
+    public async Task<Result<string>> HandleAsync(
+        GetTitle message, PipelineNext<Result<string>> invokeNext, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (message.Preview)
+        {
+            return Result<string>.Success("Podgląd");
+        }
+
+        Result<string> result = await invokeNext();
+        return result.IsSuccess ? Result<string>.Success(result.Value.Trim()) : result;
+    }
+}
+```
+
+Pierwsze zarejestrowane zachowanie wchodzi jako pierwsze i kończy pracę jako
+ostatnie. Zwrócenie wyniku bez wywołania `invokeNext()` pomija kolejne zachowania
+i handler. `invokeNext()` przekazuje ten sam `CancellationToken` do kolejnego
+zachowania lub handlera. Wyjątki techniczne i anulowanie docierają do wywołującego.
+Pipeline nie ponawia wykonania handlera. Gdy brak zachowań dla komunikatu,
+mediator wywołuje jego handler bezpośrednio.
+
 ## Nowy moduł z Default
 
 Nowy moduł wydzielaj dla odrębnej odpowiedzialności biznesowej. Funkcję należącą
