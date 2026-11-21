@@ -14,6 +14,6 @@ Naruszenie reguł zwraca HTTP 400 w formacie `ValidationProblemDetails`. Wspóln
 
 ## Pierwsze wdrożenie
 
-Pilotaż obejmuje wymaganą nazwę w `POST /default/examples`. Zachowujemy dotychczasową obsługę błędów odczytu JSON. Zakres walidacji obejmuje ciało żądania. Reguły NIP i PESEL odkładamy do czasu wdrożenia żądań zawierających te pola.
+Pilotaż obejmuje wymaganą nazwę w `POST /default/examples`. Host zwraca zwykły `ProblemDetails` przy błędzie odczytu JSON, zgodnie z [ADR 0004](0004-http-response-contract.md). Walidacja odczytanego ciała żądania zwraca `ValidationProblemDetails`. Reguły NIP i PESEL odkładamy do czasu wdrożenia żądań zawierających te pola.
 
-Zakres wdrożenia i kryteria weryfikacji opisuje [specyfikacja w zgłoszeniu #29](https://github.com/savek7/netx/issues/29).
+Zakres wdrożenia i kryteria weryfikacji opisuje [specyfikacja w zgłoszeniu #29](https://github.com/savek7/netx/issues/29). Zapis w zgłoszeniu o zachowaniu dotychczasowej obsługi błędów odczytu JSON zastępuje [ADR 0004](0004-http-response-contract.md).
