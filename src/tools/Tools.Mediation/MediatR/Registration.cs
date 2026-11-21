@@ -65,14 +65,12 @@ internal sealed class QueryRequestHandler<T>(IServiceProvider services) : IReque
 {
     public Task<Result<T>> Handle(QueryRequest<T> request, CancellationToken cancellationToken)
     {
-        Type handlerType = typeof(IQueryHandler<,>).MakeGenericType(request.Query.GetType(), typeof(T));
-
         try
         {
             return (Task<Result<T>>)typeof(QueryRequestHandler<T>)
                 .GetMethod(nameof(Invoke), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(request.Query.GetType())
-                .Invoke(null, [services.GetRequiredService(handlerType), request.Query, cancellationToken])!;
+                .Invoke(null, [services, request.Query, cancellationToken])!;
         }
         catch (System.Reflection.TargetInvocationException exception) when (exception.InnerException is not null)
         {
@@ -81,8 +79,12 @@ internal sealed class QueryRequestHandler<T>(IServiceProvider services) : IReque
         }
     }
 
-    private static Task<Result<T>> Invoke<TQuery>(IQueryHandler<TQuery, T> handler, TQuery query, CancellationToken token)
-        where TQuery : IQuery<T> => handler.HandleAsync(query, token);
+    private static Task<Result<T>> Invoke<TQuery>(IServiceProvider services, TQuery query, CancellationToken token)
+        where TQuery : IQuery<T>
+    {
+        return MediationPipeline.RunAsync(
+            services, query, () => services.GetRequiredService<IQueryHandler<TQuery, T>>().HandleAsync(query, token), token);
+    }
 }
 
 internal sealed class QueryMediator(ISender sender) : IQueryMediator
